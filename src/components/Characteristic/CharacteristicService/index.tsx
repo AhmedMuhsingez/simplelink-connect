@@ -38,11 +38,19 @@ import {
   Switch,
   TextInputSubmitEditingEventData,
   StyleSheet,
-  InteractionManager
+  InteractionManager,
+  TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '../../Themed';
-import React, { useCallback, useEffect, useState, useRef, Dispatch, SetStateAction } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useRef,
+  Dispatch,
+  SetStateAction,
+} from 'react';
 import Layout from '../../../constants/Layout';
 import BleManager from 'react-native-ble-manager';
 import Colors from '../../../constants/Colors';
@@ -53,6 +61,8 @@ import { uuidToCharacteristicName } from '../../../hooks/uuidToName';
 import ServiceResponse from './ServiceResponse';
 import { useCharacteristicContext } from '../../../context/CharacteristicContext';
 import { convertStringToByteArray } from '../../../hooks/convert';
+import { CheckBox } from '@rneui/base';
+import { useInterval } from './hook';
 
 interface Props {
   peripheralId: string;
@@ -66,7 +76,7 @@ interface Props {
 type Response = {
   data: string;
   time: string;
-}
+};
 
 const CharacteristicService: React.FC<Props> = ({
   peripheralId,
@@ -74,24 +84,33 @@ const CharacteristicService: React.FC<Props> = ({
   serviceName: serviceName,
   char,
   selectedFormat,
-  setSelectedFormat
+  setSelectedFormat,
 }) => {
-
   const { characteristicData, loading } = useCharacteristicContext();
 
-
   let checkNotify = Object.values(char.properties).indexOf('Notify') > -1;
-  let checkWrite = Object.values(char.properties).indexOf('Write') > -1
-  let checkWriteWithoutRsp = Object.values(char.properties).indexOf('WriteWithoutResponse') > -1;
+  let checkWrite = Object.values(char.properties).indexOf('Write') > -1;
+  let checkWriteWithoutRsp =
+    Object.values(char.properties).indexOf('WriteWithoutResponse') > -1;
   let checkRead = Object.values(char.properties).indexOf('Read') > -1;
   let checkIndicate = Object.values(char.properties).indexOf('Indicate') > -1;
 
-  let propertiesString = ''
-  if (checkRead) { propertiesString += 'Read ' }
-  if (checkWrite) { propertiesString += 'Write ' }
-  if (checkWriteWithoutRsp) { propertiesString += 'WriteNoRsp ' }
-  if (checkNotify) { propertiesString += 'Notify ' }
-  if (checkIndicate) { propertiesString += 'Indicate' }
+  let propertiesString = '';
+  if (checkRead) {
+    propertiesString += 'Read ';
+  }
+  if (checkWrite) {
+    propertiesString += 'Write ';
+  }
+  if (checkWriteWithoutRsp) {
+    propertiesString += 'WriteNoRsp ';
+  }
+  if (checkNotify) {
+    propertiesString += 'Notify ';
+  }
+  if (checkIndicate) {
+    propertiesString += 'Indicate';
+  }
 
   const [charName, setCharName] = useState<string>(() => {
     if (char.characteristic.length == 4) {
@@ -102,7 +121,8 @@ const CharacteristicService: React.FC<Props> = ({
   });
 
   const [writeInput, setWriteInput] = useState<string>('');
-  const [writeWithResponseSwitch, setWriteWithResponseSwitch] = useState<boolean>(false);
+  const [writeWithResponseSwitch, setWriteWithResponseSwitch] =
+    useState<boolean>(false);
 
   const [notificationSwitch, setNotificationSwitch] = useState<boolean>(false);
   const [indicationsSwitch, setIndicationsSwitch] = useState<boolean>(false);
@@ -114,7 +134,7 @@ const CharacteristicService: React.FC<Props> = ({
   const [writeResponse, setWriteResponse] = useState<Response[]>([]);
   const [notifyResponse, setNotifyResponse] = useState<Response[]>([]);
 
-  const writeTextInputRef = useRef({})
+  const writeTextInputRef = useRef({});
 
   let initialFocus = useRef<boolean>(true);
 
@@ -139,30 +159,36 @@ const CharacteristicService: React.FC<Props> = ({
           console.log('refocuse');
         }
 
-        console.log('CharacteristicService: addListener')
+        console.log('CharacteristicService: addListener');
         bleManagerEmitter.addListener(
           'BleManagerDidUpdateValueForCharacteristic',
           ({ value, peripheral, characteristic, service }) => {
             console.log('notification: ', value);
-            let hexString = ''
+            let hexString = '';
             if (selectedFormat === 'UTF-8') {
               hexString = Buffer.from(value).toString('utf8');
               console.log('notification: converted to UTF-8 ', hexString);
-            }
-            else if (selectedFormat === 'Dec') {
+            } else if (selectedFormat === 'Dec') {
               hexString = value;
               console.log('notification: converted to Dec ', hexString);
-            }
-            else { // must be hex
+            } else {
+              // must be hex
               hexString = Buffer.from(value).toString('hex');
               console.log('notification: converted to Hex ', hexString);
             }
 
             /* Check include string and not dirrect match to ork around issue 
                switching between SimplePeripheral and PersistantApp */
-            if (characteristic.toLowerCase().includes(char.characteristic.toLowerCase())) {
+            if (
+              characteristic
+                .toLowerCase()
+                .includes(char.characteristic.toLowerCase())
+            ) {
               setNotifyResponse((prev) => [
-                { data: hexString, time: new Date().toTimeString().split(' ')[0] },
+                {
+                  data: hexString,
+                  time: new Date().toTimeString().split(' ')[0],
+                },
                 ...prev.slice(0, 4),
               ]);
             }
@@ -172,28 +198,40 @@ const CharacteristicService: React.FC<Props> = ({
 
       return () => {
         task.cancel();
-        console.log('CharacteristicService: removeAllListeners')
-        bleManagerEmitter.removeAllListeners('BleManagerDidUpdateValueForCharacteristic');
-        if (Object.values(char.properties).indexOf('Notify') > -1 || Object.values(char.properties).indexOf('Indicate') > -1) {
+        console.log('CharacteristicService: removeAllListeners');
+        bleManagerEmitter.removeAllListeners(
+          'BleManagerDidUpdateValueForCharacteristic'
+        );
+        if (
+          Object.values(char.properties).indexOf('Notify') > -1 ||
+          Object.values(char.properties).indexOf('Indicate') > -1
+        ) {
           //Cleaning up notification
-          BleManager.stopNotification(peripheralId, serviceUuid, char.characteristic);
+          BleManager.stopNotification(
+            peripheralId,
+            serviceUuid,
+            char.characteristic
+          );
         }
-      }
+      };
     }, [, selectedFormat])
   );
 
   useEffect(() => {
-    console.log('selectedFormat ', selectedFormat)
+    console.log('selectedFormat ', selectedFormat);
   }, [selectedFormat]);
 
   useEffect(() => {
     let checkIfCharacteristicNameAvailable = async () => {
       try {
-        let check = uuidToCharacteristicName(char.characteristic, characteristicData);
+        let check = uuidToCharacteristicName(
+          char.characteristic,
+          characteristicData
+        );
         if (check !== undefined) {
           setCharName(check);
         }
-      } catch (error) { }
+      } catch (error) {}
     };
 
     checkIfCharacteristicNameAvailable();
@@ -213,10 +251,18 @@ const CharacteristicService: React.FC<Props> = ({
       if (notificationSwitch) {
         console.log('enabling notifications');
         // To enable BleManagerDidUpdateValueForCharacteristic listener
-        BleManager.startNotification(peripheralId, serviceUuid, char.characteristic);
+        BleManager.startNotification(
+          peripheralId,
+          serviceUuid,
+          char.characteristic
+        );
       } else {
         console.log('disabling notifications');
-        BleManager.stopNotification(peripheralId, serviceUuid, char.characteristic);
+        BleManager.stopNotification(
+          peripheralId,
+          serviceUuid,
+          char.characteristic
+        );
       }
     } else {
       console.log('Notify not supported by this characteristic');
@@ -224,21 +270,28 @@ const CharacteristicService: React.FC<Props> = ({
   }, [notificationSwitch, selectedFormat]);
 
   useEffect(() => {
-    console.log('indication:', indicationsSwitch)
+    console.log('indication:', indicationsSwitch);
     if (Object.values(char.properties).indexOf('Indicate') > -1) {
       if (indicationsSwitch) {
         console.log('enabling indications');
         // To enable BleManagerDidUpdateValueForCharacteristic listener
-        BleManager.startNotification(peripheralId, serviceUuid, char.characteristic);
+        BleManager.startNotification(
+          peripheralId,
+          serviceUuid,
+          char.characteristic
+        );
       } else {
         console.log('disabling indications');
-        BleManager.stopNotification(peripheralId, serviceUuid, char.characteristic);
+        BleManager.stopNotification(
+          peripheralId,
+          serviceUuid,
+          char.characteristic
+        );
       }
     } else {
       console.log('Indications not supported by this characteristic');
     }
   }, [indicationsSwitch, selectedFormat]);
-
 
   const [writeBytes, setWriteBytes] = useState<Uint8Array | string>();
 
@@ -255,9 +308,10 @@ const CharacteristicService: React.FC<Props> = ({
 
   const handleWriteSubmit = useCallback(
     (e: NativeSyntheticEvent<TextInputSubmitEditingEventData>) => {
-
-      if ((!checkWrite) && (checkWriteWithoutRsp)) {
-        console.log('handleWriteSubmit: error write and writeWithoutRsp not supported')
+      if (!checkWrite && checkWriteWithoutRsp) {
+        console.log(
+          'handleWriteSubmit: error write and writeWithoutRsp not supported'
+        );
         return;
       }
 
@@ -276,12 +330,11 @@ const CharacteristicService: React.FC<Props> = ({
       if (selectedFormat === 'UTF-8') {
         console.log('handleWriteSubmit: converting to UTF-8');
         writeByteArray = convertStringToByteArray(hexString);
-      }
-      else if (selectedFormat === 'Dec') {
+      } else if (selectedFormat === 'Dec') {
         hexString = hexString.toLowerCase();
         // check input it Dec
         if (hexString.match(/^[0-9]+$/) === null) {
-          alert('Value enterd is not Decimal format')
+          alert('Value enterd is not Decimal format');
           return;
         }
         console.log('handleWriteSubmit: converting to Dec');
@@ -289,12 +342,12 @@ const CharacteristicService: React.FC<Props> = ({
           //@ts-ignore
           hexString.match(/.{1,2}/g).map((byte) => parseInt(byte, 10))
         );
-      }
-      else { // must be hex
+      } else {
+        // must be hex
         hexString = hexString.toLowerCase();
         // check input it Hex
         if (hexString.match(/^[0-9a-f]+$/) === null) {
-          alert('Value enterd is not Hex format')
+          alert('Value enterd is not Hex format');
           return;
         }
         writeByteArray = Uint8Array.from(
@@ -305,23 +358,33 @@ const CharacteristicService: React.FC<Props> = ({
 
       let writeBytes = Array.from(writeByteArray);
 
-      console.log('handleWriteSubmit[' + writeBytes.length + ']: ' + writeBytes);
+      console.log(
+        'handleWriteSubmit[' + writeBytes.length + ']: ' + writeBytes
+      );
 
-      writeFunction(peripheralId, serviceUuid, char.characteristic, writeBytes, writeBytes.length)
+      writeFunction(
+        peripheralId,
+        serviceUuid,
+        char.characteristic,
+        writeBytes,
+        writeBytes.length
+      )
         .then(() => {
           // Success code
-          console.log('Writen: ' + writeByteArray + ' to ' + char.characteristic);
+          console.log(
+            'Writen: ' + writeByteArray + ' to ' + char.characteristic
+          );
 
           setWriteInput('');
 
-          let hexString = ''
+          let hexString = '';
           if (selectedFormat === 'UTF-8') {
             hexString = Buffer.from(writeByteArray).toString('utf8');
-          }
-          else if (selectedFormat === 'Dec') {
-            hexString = writeByteArray.map((byte) => parseInt(byte.toString(10))).toString()
-          }
-          else {
+          } else if (selectedFormat === 'Dec') {
+            hexString = writeByteArray
+              .map((byte) => parseInt(byte.toString(10)))
+              .toString();
+          } else {
             hexString = Buffer.from(writeByteArray).toString('hex');
           }
 
@@ -347,23 +410,25 @@ const CharacteristicService: React.FC<Props> = ({
     writeTextInputRef[char.characteristic].focus();
   }, []);
 
+  const [autoRead, setAutoRead] = useState(false);
+  const [autoReadTime, setAutoReadTime] = useState<string>('1');
+
   const handleReadButton = useCallback(() => {
-    console.log('handleReadButton selectedFormat ', selectedFormat)
+    console.log('handleReadButton selectedFormat ', selectedFormat);
     if (Object.values(char.properties).indexOf('Read') > -1) {
       BleManager.read(peripheralId, serviceUuid, char.characteristic)
         .then((data) => {
           // Success code
-          let hexString = ''
+          let hexString = '';
 
           if (selectedFormat == 'UTF-8') {
             hexString = Buffer.from(data).toString('utf8');
             console.log('handleReadButton: converted to UTF-8 ', hexString);
-          }
-          else if (selectedFormat === 'Dec') {
+          } else if (selectedFormat === 'Dec') {
             hexString = data;
             console.log('handleReadButton: converted to Dec ', hexString);
-          }
-          else { // must be hex
+          } else {
+            // must be hex
             hexString = Buffer.from(data).toString('hex');
             console.log('handleReadButton: converted to Hex ', hexString);
           }
@@ -383,6 +448,8 @@ const CharacteristicService: React.FC<Props> = ({
     }
   }, [selectedFormat]);
 
+  useInterval(handleReadButton, autoRead ? Number(autoReadTime) * 1000 : null);
+
   const handleNotificationSwitch = useCallback(async () => {
     setNotificationSwitch((prev) => !prev);
   }, [notificationSwitch]);
@@ -394,7 +461,9 @@ const CharacteristicService: React.FC<Props> = ({
   return (
     <View>
       <View style={[styles.charContainer]}>
-        <Text style={{ fontWeight: 'bold', fontSize: charNameSize }}>{charName}</Text>
+        <Text style={{ fontWeight: 'bold', fontSize: charNameSize }}>
+          {charName}
+        </Text>
         <View
           style={[
             {
@@ -405,10 +474,12 @@ const CharacteristicService: React.FC<Props> = ({
             },
           ]}
         >
-          {(charName != charUuidString) &&
+          {charName != charUuidString && (
             <Text style={[{}]}>UUID: {charUuidString}</Text>
-          }
-          <Text style={[{ fontWeight: '200', paddingTop: 5 }]}>Properties: {propertiesString}</Text>
+          )}
+          <Text style={[{ fontWeight: '200', paddingTop: 5 }]}>
+            Properties: {propertiesString}
+          </Text>
         </View>
       </View>
       {(checkWrite || checkWriteWithoutRsp) && (
@@ -422,11 +493,16 @@ const CharacteristicService: React.FC<Props> = ({
                 paddingBottom: 0,
               }}
             >
-              <TouchableOpacity onPress={handleWriteButton} style={[styles.readWriteButton]}>
+              <TouchableOpacity
+                onPress={handleWriteButton}
+                style={[styles.readWriteButton]}
+              >
                 <Text style={[{ fontWeight: 'bold' }]}>Write</Text>
               </TouchableOpacity>
               <Input
-                ref={(input) => { writeTextInputRef[char.characteristic] = input; }}
+                ref={(input) => {
+                  writeTextInputRef[char.characteristic] = input;
+                }}
                 value={writeInput}
                 containerStyle={{
                   display: 'flex',
@@ -452,31 +528,79 @@ const CharacteristicService: React.FC<Props> = ({
       {checkRead && (
         <View style={{ ...Layout.separators }}>
           <View style={[styles.container]}>
-            <View>
+            <View
+              style={{
+                // flexDirection: 'co',
+                display: 'flex',
+                flex: 1,
+                paddingBottom: 10,
+              }}
+            >
+              <TouchableOpacity
+                onPress={handleReadButton}
+                style={[styles.readWriteButton]}
+              >
+                <Text style={[{ fontWeight: 'bold' }]}>Read</Text>
+              </TouchableOpacity>
               <View
                 style={{
                   flexDirection: 'row',
-                  flex: 1,
-                  paddingBottom: 10,
-                }}>
-                <TouchableOpacity onPress={handleReadButton} style={[styles.readWriteButton]}>
-                  <Text style={[{ fontWeight: 'bold' }]}>Read</Text>
-                </TouchableOpacity>
+                  width: '100%',
+                  alignItems: 'center',
+                }}
+              >
+                <CheckBox
+                  checked={autoRead}
+                  onPress={() => {
+                    if (!isNaN(autoReadTime)) {
+                      setAutoRead(!autoRead);
+                    }
+                  }}
+                  title={'Auto read'}
+                />
+                <Text style={{ marginRight: 8 }}>Seconds:</Text>
+
+                <TextInput
+                  onChangeText={(text) => {
+                    setAutoRead(false);
+                    setAutoReadTime(text);
+                  }}
+                  value={autoReadTime}
+                  placeholder="in seconds"
+                  keyboardType="numeric"
+                  style={{
+                    maxWidth: 100,
+                    borderBottomColor: 'gray',
+                    borderBottomWidth: 1,
+                  }}
+                />
               </View>
             </View>
           </View>
           <View style={{ paddingLeft: 25, paddingBottom: 20 }}>
             <ServiceResponse responseArray={readResponse} />
+            {/* هون */}
           </View>
         </View>
       )}
       {checkNotify && (
         <View>
-          <View style={[styles.container, { alignContent: 'center', justifyContent: 'space-between', flexDirection: 'row' }]}>
+          <View
+            style={[
+              styles.container,
+              {
+                alignContent: 'center',
+                justifyContent: 'space-between',
+                flexDirection: 'row',
+              },
+            ]}
+          >
             <View style={{ flexDirection: 'row' }}>
-              <Text style={{ fontWeight: 'bold', alignSelf: 'center' }}>Notifications</Text>
+              <Text style={{ fontWeight: 'bold', alignSelf: 'center' }}>
+                Notifications
+              </Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ paddingRight: 10 }}>Enable</Text>
               <Switch
                 value={notificationSwitch}
@@ -489,27 +613,37 @@ const CharacteristicService: React.FC<Props> = ({
           </View>
         </View>
       )}
-      {
-        checkIndicate && (
-          <View>
-            <View style={[styles.container, { alignContent: 'center', justifyContent: 'space-between', flexDirection: 'row' }]}>
-              <View style={{ flexDirection: 'row' }}>
-                <Text style={{ fontWeight: 'bold', alignSelf: 'center' }}>Indications</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ paddingRight: 10 }}>Enable</Text>
-                <Switch
-                  value={indicationsSwitch}
-                  onChange={handleIndicationSwitch}
-                />
-              </View>
+      {checkIndicate && (
+        <View>
+          <View
+            style={[
+              styles.container,
+              {
+                alignContent: 'center',
+                justifyContent: 'space-between',
+                flexDirection: 'row',
+              },
+            ]}
+          >
+            <View style={{ flexDirection: 'row' }}>
+              <Text style={{ fontWeight: 'bold', alignSelf: 'center' }}>
+                Indications
+              </Text>
             </View>
-            <View style={{ paddingLeft: 25, paddingBottom: 20 }}>
-              <ServiceResponse responseArray={notifyResponse} />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ paddingRight: 10 }}>Enable</Text>
+              <Switch
+                value={indicationsSwitch}
+                onChange={handleIndicationSwitch}
+              />
             </View>
           </View>
-        )}
-    </View >
+          <View style={{ paddingLeft: 25, paddingBottom: 20 }}>
+            <ServiceResponse responseArray={notifyResponse} />
+          </View>
+        </View>
+      )}
+    </View>
   );
 };
 
@@ -524,7 +658,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     marginLeft: 20,
     marginRight: 20,
-    flexDirection: 'row'
+    flexDirection: 'row',
   },
   characteristicUUIDWrapper: {
     paddingVertical: 10,

@@ -139,13 +139,13 @@ def reactNativeArchitectures() {
 
 android {
     ndkVersion '26.1.10909125'
-    compileSdk 34
+    compileSdk 33
 
 
     defaultConfig {
         applicationId 'com.ti.connectivity.simplelinkconnect'
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        minSdkVersion 33
+        targetSdkVersion 33
         versionCode 23
         versionName "2.0.2"
         buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
